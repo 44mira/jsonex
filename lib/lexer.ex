@@ -20,9 +20,12 @@ defmodule Lexer do
             | :lparen
             | :rparen
             | :comma
+            | :colon
 
     @type t :: %Token{type: token_type, text: binary | nil}
   end
+
+  def token(type, text \\ nil), do: %Lexer.Token{type: type, text: text}
 
   @group_syms %{
     ?{ => :lbrace,
@@ -31,7 +34,8 @@ defmodule Lexer do
     ?] => :rbracket,
     ?( => :lparen,
     ?) => :rparen,
-    ?, => :comma
+    ?, => :comma,
+    ?: => :colon
   }
 
   @spec tokenize(binary, list(Token)) :: {:ok, list(Token)} | {:error, binary}
@@ -59,7 +63,7 @@ defmodule Lexer do
     try do
       {new_rest, new_tokens} =
         case top do
-          ?\s ->
+          c when c in [?\s, ?\n, ?\r] ->
             {rest, tokens}
 
           ?" ->
