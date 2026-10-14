@@ -2,7 +2,7 @@ defmodule LexerTest do
   use ExUnit.Case
   doctest Lexer
 
-  defp token(type, text \\ nil), do: %Lexer.Token{type: type, text: text}
+  import Lexer, only: [token: 2, token: 1]
 
   test "Tokenize empty" do
     assert Lexer.tokenize("") == {:ok, []}
@@ -38,6 +38,25 @@ defmodule LexerTest do
                 token(:lbracket),
                 token(:rbracket),
                 token(:comma)
+              ]}
+  end
+
+  test "Tokenize valid JSON" do
+    assert Lexer.tokenize(~s|{
+      "name": "benson",
+      "age": 23
+    }|) ==
+             {:ok,
+              [
+                token(:lbrace),
+                token(:string, "name"),
+                token(:colon),
+                token(:string, "benson"),
+                token(:comma),
+                token(:string, "age"),
+                token(:colon),
+                token(:integer, "23"),
+                token(:rbrace)
               ]}
   end
 
