@@ -28,13 +28,11 @@ defmodule LexerTest do
   end
 
   test "Tokenize grouping characters" do
-    assert Lexer.tokenize("{}()[],") ==
+    assert Lexer.tokenize("{}[],") ==
              {:ok,
               [
                 token(:lbrace),
                 token(:rbrace),
-                token(:lparen),
-                token(:rparen),
                 token(:lbracket),
                 token(:rbracket),
                 token(:comma)

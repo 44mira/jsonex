@@ -17,8 +17,6 @@ defmodule Lexer do
             | :rbrace
             | :lbracket
             | :rbracket
-            | :lparen
-            | :rparen
             | :comma
             | :colon
 
@@ -32,8 +30,6 @@ defmodule Lexer do
     ?} => :rbrace,
     ?[ => :lbracket,
     ?] => :rbracket,
-    ?( => :lparen,
-    ?) => :rparen,
     ?, => :comma,
     ?: => :colon
   }
