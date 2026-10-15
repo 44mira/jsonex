@@ -17,8 +17,15 @@ defmodule Parser do
             | :string
             | :array
             | :object
+            | :kv_pair
 
-    @type t :: %ASTNode{type: node_type, value: any, children: list(ASTNode.t())}
+    @type t :: %ASTNode{type: node_type, value: any, children: list(t)}
+    @type keyvalue_pair :: %ASTNode{
+            type: :kv_pair,
+            value: nil,
+            children: nonempty_list(t)
+          }
+    @type object :: %ASTNode{type: :object, value: nil, children: list(keyvalue_pair)}
   end
 
   @type parser_state :: {:ok, ASTNode.t(), list(Lexer.Token.t())} | {:error, binary}
@@ -37,11 +44,10 @@ defmodule Parser do
     with {:ok, node, []} <- parse_expr(tokens) do
       deserialize_ast(node)
     else
-      {:ok, _, rem} -> {:error, "token list not fully consumed: #{rem}"}
+      {:ok, _, rem} -> {:error, "token list not fully consumed: #{inspect(rem)}"}
     end
   end
 
-  # TODO: Deserialize Arrays and Objects
   def deserialize_ast(node) do
     case node do
       %ASTNode{value: v, children: []} ->
@@ -60,6 +66,36 @@ defmodule Parser do
           |> Task.await_many()
 
         {:ok, array}
+
+      %ASTNode{type: :kv_pair, children: kv} ->
+        kvpair =
+          kv
+          |> Enum.map(
+            &Task.async(fn ->
+              {:ok, v} = deserialize_ast(&1)
+              v
+            end)
+          )
+          |> Task.await_many()
+
+        {:ok, kvpair}
+
+      %ASTNode{type: :object, children: kvpairs} ->
+        map =
+          kvpairs
+          |> Enum.map(
+            &Task.async(fn ->
+              {:ok, [k, v]} = deserialize_ast(&1)
+              {k, v}
+            end)
+          )
+          |> Task.await_many()
+          |> Enum.into(%{}, fn {k, v} ->
+            k = if is_binary(k), do: String.to_atom(k), else: k
+            {k, v}
+          end)
+
+        {:ok, map}
     end
   end
 
@@ -67,6 +103,7 @@ defmodule Parser do
   defp parse_expr(tokens) do
     case tokens do
       [%Token{type: :lbracket} | tokens] -> parse_array(tokens)
+      [%Token{type: :lbrace} | tokens] -> parse_object(tokens)
       _ -> parse_literal(tokens)
     end
   end
@@ -98,6 +135,9 @@ defmodule Parser do
       new_array_node = %{array_node | children: [element | array_node.children]}
 
       case rest do
+        [] ->
+          {:error, "unclosed array"}
+
         [%Token{type: :rbracket} | new_rest] ->
           final_array_node = %{new_array_node | children: Enum.reverse(new_array_node.children)}
           {:ok, final_array_node, new_rest}
@@ -106,8 +146,38 @@ defmodule Parser do
           parse_array(new_rest, new_array_node)
 
         [token | _new_rest] ->
-          {:error, "unexpected token encountered while parsing array: #{token}"}
+          {:error, "unexpected token encountered while parsing array: #{inspect(token)}"}
       end
+    end
+  end
+
+  @spec parse_object(list(Lexer.Token.t()), ASTNode.object()) :: parser_state
+  defp parse_object(tokens, object_node \\ %ASTNode{type: :object})
+
+  defp parse_object([], _object_node), do: {:error, "unclosed object"}
+
+  defp parse_object(tokens, object_node) do
+    with {:ok, key, rest} <- parse_expr(tokens),
+         [%Token{type: :colon} | intermediate_rest] = rest,
+         {:ok, value, new_rest} <- parse_expr(intermediate_rest) do
+      kv_pair_node = %ASTNode{type: :kv_pair, children: [key, value]}
+      new_object_node = %{object_node | children: [kv_pair_node | object_node.children]}
+
+      case new_rest do
+        [] ->
+          {:error, "unclosed object"}
+
+        [%Token{type: :rbrace} | new_rest] ->
+          {:ok, new_object_node, new_rest}
+
+        [%Token{type: :comma} | new_rest] ->
+          parse_object(new_rest, new_object_node)
+
+        [token | _new_rest] ->
+          {:error, "unexpected token encountered while parsing object: #{inspect(token)}"}
+      end
+    else
+      e -> {:error, "unexpected parser state encountered while parsing object: #{inspect(e)}"}
     end
   end
 end
