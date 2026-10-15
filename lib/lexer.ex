@@ -34,7 +34,7 @@ defmodule Lexer do
     ?: => :colon
   }
 
-  @spec tokenize(binary, list(Token)) :: {:ok, list(Token)} | {:error, binary}
+  @spec tokenize(binary, list(Token.t())) :: {:ok, list(Token.t())} | {:error, binary}
   def tokenize(str, tokens \\ [])
 
   def tokenize("", tokens), do: {:ok, Enum.reverse(tokens)}
@@ -82,7 +82,7 @@ defmodule Lexer do
     end
   end
 
-  @spec tokenize_number(binary, list(Token), charlist) :: {binary, list(Token)}
+  @spec tokenize_number(binary, list(Token.t()), charlist) :: {binary, list(Token.t())}
   defp tokenize_number(str, tokens, current_token)
 
   defp tokenize_number(<<a, rest::binary>>, tokens, current_token)
@@ -103,7 +103,7 @@ defmodule Lexer do
     {str, [%Token{type: token_type, text: token_text} | tokens]}
   end
 
-  @spec tokenize_string(binary, list(Token), charlist) :: {binary, list(Token)}
+  @spec tokenize_string(binary, list(Token.t()), charlist) :: {binary, list(Token.t())}
   defp tokenize_string(str, tokens, current_token)
 
   # Closing quote
