@@ -3,7 +3,9 @@ defmodule Jsonex do
   Documentation for `Jsonex`.
   """
 
-  def hello do
-    :world
+  def deserialize(str) do
+    with {:ok, tokens} <- Lexer.tokenize(str) do
+      Parser.parse(tokens)
+    end
   end
 end
