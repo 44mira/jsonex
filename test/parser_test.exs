@@ -30,6 +30,10 @@ defmodule ParserTest do
     assert Parser.parse(tokenize("[1, 2, 3]")) === {:ok, [1, 2, 3]}
   end
 
+  test "Parse nested array" do
+    assert Parser.parse(tokenize("[1, [2, 3], [[4]]]")) === {:ok, [1, [2, 3], [[4]]]}
+  end
+
   test "Parse map" do
     assert Parser.parse(tokenize(~s|{"name": "benson", "age": 23}|)) ===
              {:ok,
