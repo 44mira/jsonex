@@ -48,10 +48,16 @@ defmodule Parser do
         {:ok, v}
 
       %ASTNode{type: :array, children: elements} ->
+        # compute child ASTNode in own tasks
         array =
           elements
-          |> Enum.map(&deserialize_ast/1)
-          |> Enum.map(fn {:ok, v} -> v end)
+          |> Enum.map(
+            &Task.async(fn ->
+              {:ok, v} = deserialize_ast(&1)
+              v
+            end)
+          )
+          |> Task.await_many()
 
         {:ok, array}
     end
